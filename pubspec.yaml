@@ -1,0 +1,37 @@
+name: dpop_client
+description: >-
+  DPoP proof JWTs for Dart (RFC 9449) — ES256 key handling, PEM storage, JWK
+  thumbprints, access-token binding and server-supplied nonces.
+version: 1.0.0
+homepage: https://github.com/CtrlAltDevelop
+repository: https://github.com/CtrlAltDevelop/dpop_client
+issue_tracker: https://github.com/CtrlAltDevelop/dpop_client/issues
+
+topics:
+  - dpop
+  - oauth2
+  - jwt
+  - authentication
+  - security
+
+# No `flutter:` constraint on purpose: the package is pure Dart, and declaring
+# one would make the Flutter SDK mandatory for server and CLI consumers.
+# Flutter 3.47.0 ships Dart 3.13.0, so the SDK bound below covers it.
+environment:
+  sdk: ^3.13.0
+
+dependencies:
+  basic_utils: ^5.8.2
+  crypto: ^3.0.7
+  dart_jsonwebtoken: ^3.4.1
+  uuid: ^4.6.0
+
+dev_dependencies:
+  lints: ^6.1.0
+  test: ^1.31.2
+
+# The EC private key in the golden fixture is generated, pinned and used only
+# to make signatures deterministic in tests — see the header on the file. The
+# publish-time secret scan cannot tell that from a real one.
+false_secrets:
+  - /test/golden_key.dart
