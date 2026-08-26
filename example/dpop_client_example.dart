@@ -58,6 +58,17 @@ void main() {
   );
   print('\nretry w/ nonce -> ${decode(retried.token.split('.')[1])}');
 
-  // 6. Attaching it to a request.
-  print('\nheaders: ${retried.headers().keys.toList()}');
+  print('\nheaders to send:');
+  // 6. Attaching it to a request. When the proof was built with an access
+  //    token, `headers()` also returns the Authorization header — under the
+  //    DPoP scheme, not Bearer, which RFC 9449 §7.1 requires for a bound
+  //    token and which is the step most integrations miss.
+  retried.headers().forEach((name, value) {
+    final shown = value.length > 48 ? '${value.substring(0, 45)}...' : value;
+    print('  $name: $shown');
+  });
+
+  // A proof with no access token carries no Authorization header, matching
+  // the absent `ath` claim.
+  print('\ntoken request headers: ${tokenProof.headers().keys.toList()}');
 }

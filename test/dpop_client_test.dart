@@ -9,14 +9,22 @@ import 'golden_key.dart';
 
 /// Decodes a JWT's header without verifying it, the way a server would before
 /// picking a key.
-Map<String, dynamic> headerOf(String token) => jsonDecode(
-  utf8.decode(base64Url.decode(base64Url.normalize(token.split('.').first))),
-) as Map<String, dynamic>;
+Map<String, dynamic> headerOf(String token) =>
+    jsonDecode(
+          utf8.decode(
+            base64Url.decode(base64Url.normalize(token.split('.').first)),
+          ),
+        )
+        as Map<String, dynamic>;
 
 /// Decodes a JWT's payload without verifying it.
-Map<String, dynamic> payloadOf(String token) => jsonDecode(
-  utf8.decode(base64Url.decode(base64Url.normalize(token.split('.')[1]))),
-) as Map<String, dynamic>;
+Map<String, dynamic> payloadOf(String token) =>
+    jsonDecode(
+          utf8.decode(
+            base64Url.decode(base64Url.normalize(token.split('.')[1])),
+          ),
+        )
+        as Map<String, dynamic>;
 
 void main() {
   final pair = DPoPKeyPair.fromPrivateKeyPem(goldenPrivateKeyPem);
@@ -154,6 +162,43 @@ void main() {
         )['htu'],
         'https://api.example.com/v1/x',
       );
+    });
+
+    test('normalises an empty path to /', () {
+      // RFC 9110 §7.1 has the client send `/` when the path is empty, so the
+      // server reconstructs the target URI with the slash. Emitting it
+      // without one guarantees a mismatch the server cannot explain.
+      expect(
+        payloadOf(
+          client
+              .createProof(
+                url: Uri.parse('https://api.example.com'),
+                method: 'GET',
+              )
+              .token,
+        )['htu'],
+        'https://api.example.com/',
+      );
+    });
+
+    test('drops userinfo', () {
+      // A target URI has no userinfo component, so leaving it in never
+      // matches — and writes the password into a JWT the server may log.
+      final htu =
+          payloadOf(
+                client
+                    .createProof(
+                      url: Uri.parse(
+                        'https://user:s3cret@api.example.com/v1/x',
+                      ),
+                      method: 'GET',
+                    )
+                    .token,
+              )['htu']
+              as String;
+
+      expect(htu, 'https://api.example.com/v1/x');
+      expect(htu, isNot(contains('s3cret')));
     });
 
     test('preserves the path exactly, including a trailing slash', () {
@@ -305,6 +350,97 @@ void main() {
     test('toString is the token, for direct interpolation', () {
       final proof = client.createProof(url: url, method: 'GET');
       expect('$proof', proof.token);
+    });
+  });
+
+  group('Authorization', () {
+    test('is emitted with the DPoP scheme when a token is bound', () {
+      // RFC 9449 §7.1: a DPoP-bound token travels under the DPoP scheme, not
+      // Bearer. Sending Bearer alongside a valid proof is rejected.
+      final proof = client.createProof(
+        url: url,
+        method: 'GET',
+        accessToken: 'AT.123',
+      );
+
+      expect(proof.headers(), {
+        'DPoP': proof.token,
+        'Authorization': 'DPoP AT.123',
+      });
+      expect(proof.isTokenBound, isTrue);
+    });
+
+    test('is absent on a proof with no access token', () {
+      final proof = client.createProof(url: url, method: 'GET');
+
+      expect(proof.headers().keys, isNot(contains('Authorization')));
+      expect(proof.isTokenBound, isFalse);
+    });
+
+    test('is absent for an empty access token, matching ath', () {
+      final proof = client.createProof(
+        url: url,
+        method: 'GET',
+        accessToken: '',
+      );
+
+      expect(proof.headers().keys, isNot(contains('Authorization')));
+      expect(payloadOf(proof.token), isNot(contains('ath')));
+    });
+
+    test('always agrees with the ath claim', () {
+      // The token comes from the proof, not a second parameter, so the two
+      // cannot drift apart.
+      const token = 'AT.456';
+      final proof = client.createProof(
+        url: url,
+        method: 'GET',
+        accessToken: token,
+      );
+
+      expect(proof.headers()['Authorization'], 'DPoP $token');
+      expect(
+        payloadOf(proof.token)['ath'],
+        base64Url
+            .encode(sha256.convert(utf8.encode(token)).bytes)
+            .replaceAll('=', ''),
+      );
+    });
+
+    test('rides alongside a gateway-specific proof header name', () {
+      final proof = client.createProof(
+        url: url,
+        method: 'GET',
+        accessToken: 'AT.123',
+      );
+
+      expect(proof.headers(name: 'X-DPOP'), {
+        'X-DPOP': proof.token,
+        'Authorization': 'DPoP AT.123',
+      });
+    });
+  });
+
+  group('proof equality', () {
+    test('two proofs with the same token are equal', () {
+      final proof = client.createProof(url: url, method: 'GET');
+      final same = DPoPProof(
+        token: proof.token,
+        jwk: proof.jwk,
+        thumbprint: proof.thumbprint,
+        jwtId: proof.jwtId,
+        issuedAt: proof.issuedAt,
+      );
+
+      expect(same, proof);
+      expect(same.hashCode, proof.hashCode);
+    });
+
+    test('distinct proofs are not equal', () {
+      expect(
+        client.createProof(url: url, method: 'GET'),
+        isNot(client.createProof(url: url, method: 'GET')),
+      );
     });
   });
 

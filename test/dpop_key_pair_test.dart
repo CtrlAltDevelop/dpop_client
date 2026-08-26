@@ -79,6 +79,25 @@ void main() {
     });
   });
 
+  group('derived values are cached', () {
+    test('the same instances come back on every read', () {
+      // Every proof reads these; recomputing them per request was most of the
+      // cost of signing one.
+      final pair = DPoPKeyPair.generate();
+
+      expect(identical(pair.jwk, pair.jwk), isTrue);
+      expect(identical(pair.privateKeyPem, pair.privateKeyPem), isTrue);
+      expect(identical(pair.thumbprint, pair.thumbprint), isTrue);
+    });
+
+    test('the shared jwk cannot be mutated by a caller', () {
+      final pair = DPoPKeyPair.generate();
+
+      expect(() => pair.jwk['x'] = 'tampered', throwsUnsupportedError);
+      expect(() => pair.jwk.remove('kty'), throwsUnsupportedError);
+    });
+  });
+
   group('thumbprint', () {
     test('is the RFC 7638 hash of the four required members', () {
       final pair = DPoPKeyPair.generate();

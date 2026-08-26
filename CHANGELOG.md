@@ -1,3 +1,58 @@
+## 2.0.0
+
+Bug fixes to `htu`, a much cheaper signing path, and a dependency tree cut down
+to what a proof signer actually needs.
+
+### Fixed
+
+- **`htu` no longer carries the userinfo component.** A target URI (RFC 9110
+  §7.1) has none, so a URL of the form `https://user:pass@host/path` produced a
+  claim the server could never match — and wrote the password into a JWT
+  payload the server is free to log.
+- **`htu` normalises an empty path to `/`.** RFC 9110 §7.1 has the client send
+  `/` when the path is empty, so a proof for `https://api.example.com` was
+  compared against the server's `https://api.example.com/` and rejected.
+- **The SEC 1 private key PEM pads the scalar to the full 32 octets.** RFC 5915
+  §3 fixes the `privateKey` OCTET STRING at the curve's octet length; the
+  previous encoder emitted a minimal-length field, so roughly one generated key
+  in 256 was written to storage in a form strict parsers reject. Existing PEMs
+  still read back correctly.
+
+### Added
+
+- **`DPoPProof.headers()` returns the `Authorization` header too**, under the
+  `DPoP` scheme rather than `Bearer`, as RFC 9449 §7.1 requires for a bound
+  token. The token is taken from the proof itself, so the header cannot
+  disagree with the `ath` claim. `DPoPProof.isTokenBound` reports whether a
+  proof carries one.
+- `DPoPKeyPair.fromPrivateKeyPem` accepts PKCS#8 `PRIVATE KEY` PEMs alongside
+  the SEC 1 `EC PRIVATE KEY` form, which is what most non-Dart tooling emits.
+- A key on any curve but P-256 is now refused with a clear message instead of
+  being reinterpreted against P-256's parameters and failing later as an
+  unexplained bad signature.
+- `DPoPKeyPair.fromPem` rejects a private and public half that do not belong
+  together, rather than producing proofs whose embedded JWK cannot verify them.
+- `DPoPProof` implements `==` and `hashCode` over its token.
+- A GitHub Actions workflow covering the SDK floor and `stable`, a run against
+  the oldest permitted dependency versions, and a publish dry run.
+
+### Changed
+
+- **Signing a proof is roughly twice as fast.** The private key was re-encoded
+  to PEM and re-parsed on every single request, which cost more than the ECDSA
+  signature itself; the signer now takes the parsed key directly, and the PEMs,
+  the JWK and the thumbprint are each computed once per key pair.
+- **`basic_utils` is no longer a dependency**, replaced by `pointycastle` and
+  `asn1lib` directly. This drops `archive`, `ffi`, `http`, `http_parser`,
+  `json_annotation`, `logging` and `posix` from the tree — a proof signer has
+  no use for an HTTP client or an archive reader. `privateKey` and `publicKey`
+  remain the same `pointycastle` types.
+- `keyPair.jwk` is unmodifiable, now that one map is shared by every proof.
+- Unreadable key material throws `FormatException` consistently.
+- Dependency lower bounds are widened to the oldest versions the package is
+  tested against, so it resolves alongside more of the ecosystem. The SDK floor
+  stays at 3.13.0.
+
 ## 1.0.0
 
 Initial release, extracted from an internal application module and corrected
