@@ -1,12 +1,65 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:dpop_client/dpop_client.dart';
+import 'package:pointycastle/api.dart';
+import 'package:pointycastle/ecc/api.dart';
+import 'package:pointycastle/ecc/curves/secp384r1.dart';
+import 'package:pointycastle/key_generators/api.dart';
+import 'package:pointycastle/key_generators/ec_key_generator.dart';
+import 'package:pointycastle/random/fortuna_random.dart';
 import 'package:test/test.dart';
 
 import 'golden_key.dart';
 
 void main() {
+  group('constructor', () {
+    // A P-384 pair would otherwise be published under `crv: P-256`, and the
+    // server would report only a bad signature.
+    late AsymmetricKeyPair<ECPublicKey, ECPrivateKey> p384;
+    setUpAll(() {
+      final random = FortunaRandom()..seed(KeyParameter(Uint8List(32)));
+      p384 =
+          (ECKeyGenerator()..init(
+                ParametersWithRandom(
+                  ECKeyGeneratorParameters(ECCurve_secp384r1()),
+                  random,
+                ),
+              ))
+              .generateKeyPair();
+    });
+
+    test('accepts a P-256 pair', () {
+      final pair = DPoPKeyPair.generate();
+      expect(
+        DPoPKeyPair(
+          privateKey: pair.privateKey,
+          publicKey: pair.publicKey,
+        ).thumbprint,
+        pair.thumbprint,
+      );
+    });
+
+    test('rejects a private key on another curve', () {
+      final p256 = DPoPKeyPair.generate();
+      expect(
+        () =>
+            DPoPKeyPair(privateKey: p384.privateKey, publicKey: p256.publicKey),
+        throwsArgumentError,
+      );
+    });
+
+    test('rejects a public key on another curve', () {
+      final p256 = DPoPKeyPair.generate();
+      expect(
+        () =>
+            DPoPKeyPair(privateKey: p256.privateKey, publicKey: p384.publicKey),
+        throwsArgumentError,
+      );
+    });
+  });
+
   test('generate produces a usable P-256 pair', () {
     final pair = DPoPKeyPair.generate();
     expect(pair.privateKeyPem, contains('BEGIN EC PRIVATE KEY'));

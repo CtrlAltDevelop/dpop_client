@@ -1,5 +1,10 @@
 # dpop_client
 
+[![pub package](https://img.shields.io/pub/v/dpop_client.svg)](https://pub.dev/packages/dpop_client)
+[![pub points](https://img.shields.io/pub/points/dpop_client)](https://pub.dev/packages/dpop_client/score)
+[![CI](https://github.com/CtrlAltDevelop/dpop_client/actions/workflows/ci.yml/badge.svg)](https://github.com/CtrlAltDevelop/dpop_client/actions/workflows/ci.yml)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/CtrlAltDevelop/dpop_client/blob/main/LICENSE)
+
 DPoP proof JWTs for Dart, as specified by
 [RFC 9449](https://www.rfc-editor.org/rfc/rfc9449) — ES256 key handling, PEM
 storage, JWK thumbprints, access-token binding and server-supplied nonces.
@@ -36,12 +41,13 @@ request with a message that names none of them. This package is those details.
 
 ```yaml
 dependencies:
-  dpop_client: ^2.0.0
+  dpop_client: ">=2.1.0 <3.0.0"
 ```
 
-Requires Dart 3.11.0 or newer, and so any Flutter release shipping that SDK or
-later. There is no `flutter` constraint in `pubspec.yaml`, so the package still
-resolves in server and CLI projects with no Flutter SDK installed.
+Requires Dart 3.12.0 or newer, and so any Flutter release shipping that SDK or
+later — Flutter 3.44.0 and up. There is no `flutter` constraint in
+`pubspec.yaml`, so the package still resolves in server and CLI projects with no
+Flutter SDK installed.
 
 ## Keys
 

@@ -216,6 +216,40 @@ void main() {
     });
   });
 
+  group('url validation', () {
+    // Each of these used to sign happily with an `htu` such as `///orders`,
+    // which no server can match and none can explain.
+    for (final raw in <String>[
+      '/orders',
+      'api.example.com/orders',
+      'orders?limit=20',
+      '',
+      'https:///orders',
+      'mailto:ops@example.com',
+    ]) {
+      test('rejects "$raw", which is not an absolute URL', () {
+        expect(
+          () => client.createProof(url: Uri.parse(raw), method: 'GET'),
+          throwsArgumentError,
+        );
+      });
+    }
+
+    test('still accepts an IPv6 host and an explicit port', () {
+      expect(
+        payloadOf(
+          client
+              .createProof(
+                url: Uri.parse('https://[::1]:8443/x?y=1'),
+                method: 'GET',
+              )
+              .token,
+        )['htu'],
+        'https://[::1]:8443/x',
+      );
+    });
+  });
+
   group('ath', () {
     test('is the unpadded base64url SHA-256 of the access token', () {
       const token = 'eyJhbGciOiJFUzI1NiJ9.stub-access-token';

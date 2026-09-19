@@ -44,6 +44,18 @@ const int _tagPublicKey = 0xA1;
 /// registry, so the curve cannot be missing at runtime.
 ECDomainParameters p256() => ECCurve_prime256v1();
 
+/// Whether [parameters] describe the P-256 curve.
+///
+/// Compared by curve and group order rather than by `domainName`, since a
+/// caller may have built the parameters by hand.
+bool isP256(ECDomainParameters? parameters) {
+  if (parameters == null) {
+    return false;
+  }
+  final ECDomainParameters expected = p256();
+  return parameters.curve == expected.curve && parameters.n == expected.n;
+}
+
 /// Generates a P-256 key pair from the platform's secure entropy source.
 AsymmetricKeyPair<ECPublicKey, ECPrivateKey> generateP256KeyPair() {
   final ECKeyGenerator generator = ECKeyGenerator()

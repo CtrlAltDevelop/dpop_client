@@ -19,7 +19,7 @@
 ///   accessToken: accessToken,
 /// );
 ///
-/// request.headers.addAll(proof.headers);
+/// request.headers.addAll(proof.headers());
 /// ```
 library;
 

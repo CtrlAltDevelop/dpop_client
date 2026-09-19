@@ -42,7 +42,9 @@ class DPoPClient {
   /// [url] is the request's target. Its query and fragment are **dropped**
   /// from the `htu` claim, as RFC 9449 §4.2 requires — pass the URL as you
   /// will send it and let this method normalise it, rather than trimming it at
-  /// the call site.
+  /// the call site. It must be absolute, with a scheme and a host; a relative
+  /// URL, or one missing its scheme such as `api.example.com/orders`, throws an
+  /// [ArgumentError] here rather than yielding a proof no server can match.
   ///
   /// [method] is the HTTP method, upper-cased for the `htm` claim.
   ///
@@ -69,6 +71,17 @@ class DPoPClient {
     DateTime? issuedAt,
     String? jwtId,
   }) {
+    if (!url.hasScheme || url.host.isEmpty) {
+      // Left alone, this builds an `htu` like `///orders` and signs it without
+      // complaint; the server's only response is a flat `invalid_dpop_proof`.
+      throw ArgumentError.value(
+        url,
+        'url',
+        'must be an absolute URL with a scheme and host, such as '
+            'https://api.example.com/orders',
+      );
+    }
+
     final Map<String, String> publicJwk = keyPair.jwk;
     final String id = jwtId ?? const Uuid().v4();
     // Truncated, not rounded: rounding can push `iat` up to half a second

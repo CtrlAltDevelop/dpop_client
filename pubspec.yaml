@@ -2,7 +2,7 @@ name: dpop_client
 description: >-
   DPoP proof JWTs for Dart (RFC 9449) — ES256 key handling, PEM storage, JWK
   thumbprints, access-token binding and server-supplied nonces.
-version: 2.0.0
+version: 2.1.0
 homepage: https://github.com/CtrlAltDevelop/dpop_client
 repository: https://github.com/CtrlAltDevelop/dpop_client
 issue_tracker: https://github.com/CtrlAltDevelop/dpop_client/issues
@@ -17,25 +17,24 @@ topics:
 # No `flutter:` constraint on purpose: the package is pure Dart, and declaring
 # one would make the Flutter SDK mandatory for server and CLI consumers.
 #
-# The bound is the lowest SDK on which everything here still resolves. The
-# runtime dependencies reach further down — `typed_data` needs 3.5 and nothing
-# else needs more than 3.4 — so 3.11 is set by the `test` dev dependency, and
-# lowering it further would buy consumer reach at the cost of a package whose
-# own suite cannot be run at its stated floor.
+# The floor is Dart 3.12, the SDK every package here is gated on. The runtime
+# dependencies reach further down, so the bound is a house rule rather than
+# something the code needs — one floor across the packages is worth more than
+# a few months of extra reach on each of them.
 environment:
-  sdk: ^3.11.0
+  sdk: ^3.12.0
 
 dependencies:
-  asn1lib: ^1.6.5
-  crypto: ^3.0.7
-  dart_jsonwebtoken: ^3.4.1
-  pointycastle: ^4.0.0
-  uuid: ^4.6.0
+  asn1lib: ">=1.6.5 <2.0.0"
+  crypto: ">=3.0.7 <4.0.0"
+  dart_jsonwebtoken: ">=3.4.1 <4.0.0"
+  pointycastle: ">=4.0.0 <5.0.0"
+  uuid: ">=4.6.0 <5.0.0"
 
 # Dev dependencies do not constrain consumers, so these track current.
 dev_dependencies:
-  lints: ^6.1.0
-  test: ^1.31.2
+  lints: ">=6.0.0 <7.0.0"
+  test: ">=1.31.0 <2.0.0"
 
 # The EC private key in the golden fixture is generated, pinned and used only
 # to make signatures deterministic in tests — see the header on the file. The

@@ -1,3 +1,34 @@
+## 2.1.0
+
+### Fixed
+
+- **`createProof` rejects a URL that is not absolute.** `Uri.parse('/orders')`
+  or a URL missing its scheme, such as `api.example.com/orders`, used to be
+  signed with an `htu` of `///orders` — a claim no server can match, reported
+  only as a flat `invalid_dpop_proof`. It now throws an `ArgumentError` that
+  names the argument and shows the expected shape.
+- **The `DPoPKeyPair` constructor rejects a key on any curve but P-256.** It
+  documented the requirement without checking it, so a P-384 pair was published
+  under `crv: P-256` and failed at the server as a bad signature. The named
+  constructors already refused other curves; this closes the same gap for keys
+  passed in directly.
+- The library-level example called `proof.headers` as a getter; it is a method,
+  so the snippet on the package page did not do what it appeared to.
+
+### Changed
+
+- CI moved to the shared reusable workflow in CtrlAltDevelop/ci-workflows:
+  formatting, `analyze --fatal-infos`, the tests, the example, a changelog
+  entry per version, and a pana score with no points lost — the same gate
+  across every package here.
+- **The SDK floor moves to Dart 3.12.0**, from Dart 3.11.0. This is the floor
+  every package here is gated on rather than something the code needs.
+- Dependency bounds are explicit ranges rather than carets — a floor that
+  resolves on the supported SDK, the next major as the ceiling — so a consumer
+  already on an older version in the same major is not forced to move.
+- The README carries the pub, pub points, CI and licence badges the other
+  packages here carry.
+
 ## 2.0.0
 
 Bug fixes to `htu`, a much cheaper signing path, and a dependency tree cut down

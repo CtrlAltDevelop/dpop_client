@@ -31,7 +31,26 @@ class DPoPKeyPair {
   /// Both halves must belong to the P-256 curve. Prefer [generate],
   /// [fromPrivateKeyPem] or [fromPem] unless the keys came from somewhere
   /// this package cannot read.
-  DPoPKeyPair({required this.privateKey, required this.publicKey});
+  ///
+  /// Throws an [ArgumentError] if either half is on another curve, which would
+  /// otherwise be published under a `crv` of `P-256` and fail at the server as
+  /// a bad signature.
+  DPoPKeyPair({required this.privateKey, required this.publicKey}) {
+    if (!isP256(privateKey.parameters)) {
+      throw ArgumentError.value(
+        privateKey,
+        'privateKey',
+        'must be a P-256 key; this package signs DPoP proofs with ES256 only',
+      );
+    }
+    if (!isP256(publicKey.parameters)) {
+      throw ArgumentError.value(
+        publicKey,
+        'publicKey',
+        'must be a P-256 key; this package signs DPoP proofs with ES256 only',
+      );
+    }
+  }
 
   /// Generates a fresh P-256 key pair from the platform's secure entropy.
   factory DPoPKeyPair.generate() {
