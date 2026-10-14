@@ -59,6 +59,20 @@ void main() {
     });
   });
 
+  group('PEM bundles', () {
+    test('an EC PARAMETERS block ahead of the key is skipped', () {
+      // What `openssl ecparam -name prime256v1 -genkey` writes.
+      final bundle =
+          '-----BEGIN EC PARAMETERS-----\nBggqhkjOPQMBBw==\n'
+          '-----END EC PARAMETERS-----\n$goldenPrivateKeyPem\n';
+
+      expect(
+        DPoPKeyPair.fromPrivateKeyPem(bundle).thumbprint,
+        goldenThumbprint,
+      );
+    });
+  });
+
   group('RFC 5915 scalar width', () {
     // RFC 5915 §3 fixes the privateKey OCTET STRING at the curve's octet
     // length. A minimal encoding — what a scalar with a leading zero byte

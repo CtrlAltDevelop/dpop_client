@@ -188,4 +188,35 @@ void main() {
       );
     });
   });
+
+  group('isBoundTo', () {
+    final pair = DPoPKeyPair.fromPrivateKeyPem(goldenPrivateKeyPem);
+
+    String tokenWith(Map<String, dynamic> claims) {
+      String enc(Object o) =>
+          base64Url.encode(utf8.encode(jsonEncode(o))).replaceAll('=', '');
+      return '${enc({'alg': 'none'})}.${enc(claims)}.sig';
+    }
+
+    test('is true when cnf.jkt is this key', () {
+      final token = tokenWith({
+        'cnf': {'jkt': pair.thumbprint},
+      });
+      expect(pair.isBoundTo(token), isTrue);
+    });
+
+    test('is false when cnf.jkt names another key', () {
+      final token = tokenWith({
+        'cnf': {'jkt': DPoPKeyPair.generate().thumbprint},
+      });
+      expect(pair.isBoundTo(token), isFalse);
+    });
+
+    test('is null when the token says nothing readable', () {
+      expect(pair.isBoundTo('opaque-token'), isNull);
+      expect(pair.isBoundTo('a.!!!.c'), isNull);
+      expect(pair.isBoundTo(tokenWith({'sub': 'x'})), isNull);
+      expect(pair.isBoundTo(tokenWith({'cnf': 'x'})), isNull);
+    });
+  });
 }

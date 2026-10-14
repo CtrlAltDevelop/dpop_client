@@ -1,3 +1,26 @@
+## 2.2.0
+
+### Added
+
+- **`DPoPKeyPair.isBoundTo(accessToken)`** compares a JWT access token's
+  `cnf.jkt` claim with the key's thumbprint: `true` for a match, `false` for a
+  different key — the usual sign of a key regenerated while an old token was
+  kept — and `null` when the token carries no readable `cnf.jkt`, as an opaque
+  token does. The token is not verified; this is a local staleness check.
+
+### Fixed
+
+- **`fromPrivateKeyPem` reads the output of `openssl ecparam -genkey`.** That
+  command writes an `EC PARAMETERS` block ahead of the `EC PRIVATE KEY`, and
+  the two bodies were joined and rejected as invalid base64. The key block is
+  now picked out of a bundle, so the file works as it is.
+
+### Changed
+
+- Publishing to pub.dev is automated: pushing a `v<version>` tag on `main`
+  verifies the tag against `pubspec.yaml` and `CHANGELOG.md`, then publishes
+  through GitHub Actions OIDC, with no stored secret.
+
 ## 2.1.0
 
 ### Fixed

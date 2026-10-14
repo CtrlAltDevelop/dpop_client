@@ -184,6 +184,23 @@ Future<Response> send(Request request) async {
 }
 ```
 
+### Checking a token is bound to your key
+
+A JWT access token carries the key it is bound to in `cnf.jkt`. After
+restoring a key or refreshing a token, `isBoundTo` tells you whether the two
+still agree:
+
+```dart
+switch (keyPair.isBoundTo(accessToken)) {
+  case true:  // bound to this key
+  case false: // bound to another key — sign in again
+  case null:  // opaque token; introspect it to find out
+}
+```
+
+The token is read, not verified — this catches a stale key, it is not a trust
+decision.
+
 ### Non-standard header names
 
 RFC 9449 specifies the `DPoP` header. If your gateway wants something else,

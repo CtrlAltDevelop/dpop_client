@@ -295,8 +295,24 @@ String _wrapPem(String begin, String end, Uint8List der) {
   return '$begin\n${lines.join('\n')}\n$end';
 }
 
+/// One `-----BEGIN X-----` … `-----END X-----` block of a PEM bundle.
+final RegExp _pemBlock = RegExp(
+  r'-----BEGIN ([A-Z0-9 ]+)-----(.*?)-----END \1-----',
+  dotAll: true,
+);
+
 Uint8List _derFromPem(String pem) {
-  final String body = pem
+  // `openssl ecparam -genkey` writes an `EC PARAMETERS` block ahead of the
+  // key. Joining both bodies is not valid base64, so read the first block
+  // that is not the parameters one.
+  String text = pem;
+  for (final RegExpMatch block in _pemBlock.allMatches(pem)) {
+    if (block[1] != 'EC PARAMETERS') {
+      text = block[2]!;
+      break;
+    }
+  }
+  final String body = text
       .split(RegExp(r'\r?\n'))
       .where(
         (String line) => !line.startsWith('-----') && line.trim().isNotEmpty,

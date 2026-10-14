@@ -135,6 +135,34 @@ class DPoPKeyPair {
   /// restoring a key from storage, say, or after a refresh.
   late final String thumbprint = _buildThumbprint();
 
+  /// Whether [accessToken] is bound to this key, judged by the `cnf.jkt` claim
+  /// of a JWT access token.
+  ///
+  /// Returns `true` when the token's `cnf.jkt` equals [thumbprint], `false`
+  /// when it names a different key — typically after the key was regenerated
+  /// but an old token was kept — and `null` when the token carries no readable
+  /// `cnf.jkt`, as an opaque token does. Ask the authorization server's
+  /// introspection endpoint for those.
+  ///
+  /// The token is **not verified**: this is a cheap local check for a stale
+  /// key, not a trust decision.
+  bool? isBoundTo(String accessToken) {
+    final List<String> parts = accessToken.split('.');
+    if (parts.length != 3) {
+      return null;
+    }
+    try {
+      final Object? claims = jsonDecode(
+        utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))),
+      );
+      final Object? cnf = claims is Map<String, dynamic> ? claims['cnf'] : null;
+      final Object? jkt = cnf is Map<String, dynamic> ? cnf['jkt'] : null;
+      return jkt is String ? jkt == thumbprint : null;
+    } on FormatException {
+      return null;
+    }
+  }
+
   Map<String, String> _buildJwk() {
     final ECPoint? q = publicKey.Q;
     if (q == null) {
