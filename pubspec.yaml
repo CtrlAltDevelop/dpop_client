@@ -3,7 +3,7 @@ description: >-
   DPoP proof JWTs for Dart (RFC 9449) — ES256 key handling, PEM storage, JWK
   thumbprints, access-token binding and server-supplied nonces.
 version: 2.2.0
-homepage: https://github.com/CtrlAltDevelop/dpop_client
+homepage: https://github.com/CtrlAltDevelop
 repository: https://github.com/CtrlAltDevelop/dpop_client
 issue_tracker: https://github.com/CtrlAltDevelop/dpop_client/issues
 
