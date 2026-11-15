@@ -1,12 +1,9 @@
-import 'dart:convert';
-
-import 'package:crypto/crypto.dart';
-import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart' as jwt;
-import 'package:uuid/uuid.dart';
+import 'dart:typed_data';
 
 import 'dpop_key_pair.dart';
 import 'dpop_proof.dart';
-import 'encoding.dart';
+import 'es256.dart';
+import 'unsigned_proof.dart';
 
 /// Signs DPoP proof JWTs with one [DPoPKeyPair].
 ///
@@ -71,101 +68,19 @@ class DPoPClient {
     DateTime? issuedAt,
     String? jwtId,
   }) {
-    if (!url.hasScheme || url.host.isEmpty) {
-      // Left alone, this builds an `htu` like `///orders` and signs it without
-      // complaint; the server's only response is a flat `invalid_dpop_proof`.
-      throw ArgumentError.value(
-        url,
-        'url',
-        'must be an absolute URL with a scheme and host, such as '
-            'https://api.example.com/orders',
-      );
-    }
-
-    final Map<String, String> publicJwk = keyPair.jwk;
-    final String id = jwtId ?? const Uuid().v4();
-    // Truncated, not rounded: rounding can push `iat` up to half a second
-    // into the future, which a server with no clock skew allowance rejects.
-    final DateTime stamp = issuedAt ?? DateTime.now();
-    final int seconds = stamp.millisecondsSinceEpoch ~/ 1000;
-
-    final bool hasToken = accessToken != null && accessToken.isNotEmpty;
-
-    final Map<String, dynamic> payload = <String, dynamic>{
-      'htm': method.toUpperCase(),
-      'htu': _htu(url),
-      'iat': seconds,
-      'jti': id,
-    };
-
-    if (hasToken) {
-      payload['ath'] = base64UrlUnpadded(
-        sha256.convert(utf8.encode(accessToken)).bytes,
-      );
-    }
-
-    if (nonce != null && nonce.isNotEmpty) {
-      payload['nonce'] = nonce;
-    }
-
-    final jwt.JWT proof = jwt.JWT(
-      payload,
-      header: <String, dynamic>{
-        'typ': 'dpop+jwt',
-        'alg': 'ES256',
-        'jwk': publicJwk,
-      },
+    final UnsignedProof unsigned = UnsignedProof(
+      publicJwk: keyPair.jwk,
+      url: url,
+      method: method,
+      accessToken: accessToken,
+      nonce: nonce,
+      issuedAt: issuedAt,
+      jwtId: jwtId,
     );
-
-    final String token = proof.sign(
-      // `.raw` takes the parsed key straight across. Handing the signer a PEM
-      // instead would re-encode and re-parse the key on every request, which
-      // costs more than the signature itself.
-      jwt.ECPrivateKey.raw(keyPair.privateKey),
-      algorithm: jwt.JWTAlgorithm.ES256,
-      // Without this, dart_jsonwebtoken overwrites `iat` with its own
-      // `DateTime.now()` on the way out, and the value set above — including
-      // any [issuedAt] passed in for a test — never reaches the token.
-      noIssueAt: true,
+    final Uint8List signature = signEs256(
+      keyPair.privateKey,
+      unsigned.signingBytes,
     );
-
-    return DPoPProof(
-      token: token,
-      jwk: publicJwk,
-      thumbprint: keyPair.thumbprint,
-      jwtId: id,
-      issuedAt: DateTime.fromMillisecondsSinceEpoch(
-        seconds * 1000,
-        isUtc: stamp.isUtc,
-      ),
-      accessToken: hasToken ? accessToken : null,
-    );
+    return unsigned.complete(signature, thumbprint: keyPair.thumbprint);
   }
-
-  /// The `htu` claim for [url]: scheme, host, port and path only.
-  ///
-  /// RFC 9449 §4.2 defines `htu` as the target URI (RFC 9110 §7.1) "without
-  /// query and fragment parts". Leaving a query string in is a common mistake
-  /// and one a strict server rejects, since its own reconstruction of the URI
-  /// will not match.
-  ///
-  /// Built member by member rather than with `Uri.replace`, which renders a
-  /// stripped query as a bare trailing `?`. Rebuilding also drops a
-  /// redundantly-stated default port, which is the normalisation the server
-  /// will have applied to its own copy of the URI.
-  ///
-  /// Two further normalisations the server's own copy will already have:
-  ///
-  /// * **Userinfo is dropped.** A target URI has no userinfo component, so
-  ///   leaving it in guarantees a mismatch — and writes any password in the
-  ///   URL into a JWT payload that the server is free to log.
-  /// * **An empty path becomes `/`.** RFC 9110 §7.1 has the client send `/`
-  ///   when the path is empty, so `https://api.example.com` is reconstructed
-  ///   server-side as `https://api.example.com/`.
-  static String _htu(Uri url) => Uri(
-    scheme: url.scheme,
-    host: url.host,
-    port: url.hasPort ? url.port : null,
-    path: url.path.isEmpty ? '/' : url.path,
-  ).toString();
 }

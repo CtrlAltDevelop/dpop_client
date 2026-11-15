@@ -1,3 +1,37 @@
+## 2.3.0
+
+### Added
+
+- **`DPoPSigner` and `DPoPSignerClient`** sign proofs with a key the app cannot
+  read: a WebCrypto `CryptoKey` (`extractable: false`) or a platform keystore.
+  Implement `DPoPSigner` (`publicJwk`, and an async `sign` returning the raw
+  64 byte `r || s`) and pass it to `DPoPSignerClient`, whose
+  `createProof` is `Future`-returning but otherwise identical to
+  `DPoPClient.createProof`. Both clients build claims with the same code. A
+  signature of the wrong length, such as a DER one, throws a `StateError`
+  instead of yielding a proof no server can verify, and a JWK carrying the
+  private member `d` is refused before anything is signed.
+- **`DPoPKeyPair` implements `DPoPSigner`**, so `DPoPSignerClient(keyPair)`
+  works and one code path can serve both kinds of key.
+- **`dpopThumbprint(publicJwk)`** returns the RFC 7638 `jkt` of a bare public
+  JWK, for a key with no `DPoPKeyPair` — before any proof exists, at sign-in,
+  say. `DPoPKeyPair.thumbprint` now uses it.
+
+### Fixed
+
+- **`createProof` drops the default port of `ws` and `wss` URLs.**
+  `wss://host:443/ws` is now `htu: wss://host/ws`, and `ws://host:80/` loses
+  its port, as `http` and `https` already did. Dart's `Uri` only normalises
+  the latter two, so a WebSocket handshake proof with an explicit default port
+  would not have matched the server's copy of the URI.
+
+### Notes
+
+- Any absolute URL with a host is accepted, `ws` and `wss` included.
+- An empty `nonce` is treated as no nonce, like `null`: the claim is omitted.
+- Proofs are now assembled by this package instead of `dart_jsonwebtoken`,
+  which still produces the ES256 signature. Output is unchanged.
+
 ## 2.2.0
 
 ### Added

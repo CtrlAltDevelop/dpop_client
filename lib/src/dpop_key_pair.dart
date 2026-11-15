@@ -1,11 +1,14 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
-import 'package:crypto/crypto.dart';
 import 'package:pointycastle/api.dart';
 import 'package:pointycastle/ecc/api.dart';
 
+import 'dpop_signer.dart';
 import 'ec_keys.dart';
 import 'encoding.dart';
+import 'es256.dart';
+import 'jwk_thumbprint.dart';
 
 /// An ES256 key pair used to sign DPoP proofs.
 ///
@@ -25,7 +28,10 @@ import 'encoding.dart';
 /// Every derived value — the PEMs, the [jwk] and the [thumbprint] — is
 /// computed once and cached, so holding one instance for the session is much
 /// cheaper than rebuilding it per request.
-class DPoPKeyPair {
+///
+/// A key pair is also a [DPoPSigner], so `DPoPSignerClient` accepts one and a
+/// single code path can serve in-process and keystore-held keys alike.
+class DPoPKeyPair implements DPoPSigner {
   /// Wraps an already-constructed key pair.
   ///
   /// Both halves must belong to the P-256 curve. Prefer [generate],
@@ -133,7 +139,18 @@ class DPoPKeyPair {
   /// access token. Compare it against the `cnf.jkt` claim of a token you have
   /// been issued to confirm the token is bound to *this* key — after
   /// restoring a key from storage, say, or after a refresh.
-  late final String thumbprint = _buildThumbprint();
+  late final String thumbprint = dpopThumbprint(jwk);
+
+  /// The public key as a JWK, as [DPoPSigner] requires. The same map as [jwk].
+  @override
+  Map<String, String> get publicJwk => jwk;
+
+  /// Signs [message] in process, as [DPoPSigner] requires, returning the
+  /// 64 byte `r || s` form. Completes at once; `DPoPClient` is the
+  /// synchronous way to sign proofs with this key.
+  @override
+  Future<Uint8List> sign(Uint8List message) async =>
+      signEs256(privateKey, message);
 
   /// Whether [accessToken] is bound to this key, judged by the `cnf.jkt` claim
   /// of a JWT access token.
@@ -176,17 +193,5 @@ class DPoPKeyPair {
       'use': 'sig',
       'alg': 'ES256',
     });
-  }
-
-  String _buildThumbprint() {
-    // RFC 7638 §3.3: only the required members, ordered lexicographically by
-    // key, serialised without whitespace.
-    final String canonical = jsonEncode(<String, String>{
-      'crv': jwk['crv']!,
-      'kty': jwk['kty']!,
-      'x': jwk['x']!,
-      'y': jwk['y']!,
-    });
-    return base64UrlUnpadded(sha256.convert(utf8.encode(canonical)).bytes);
   }
 }

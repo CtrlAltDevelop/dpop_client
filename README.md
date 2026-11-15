@@ -41,7 +41,7 @@ request with a message that names none of them. This package is those details.
 
 ```yaml
 dependencies:
-  dpop_client: ">=2.1.0 <3.0.0"
+  dpop_client: ">=2.3.0 <3.0.0"
 ```
 
 Requires Dart 3.12.0 or newer, and so any Flutter release shipping that SDK or
@@ -110,7 +110,7 @@ final proof = client.createProof(
 | `iat` | now      | Truncated to whole seconds, never rounded up. |
 | `jti` | UUID v4  | Fresh per proof, so a server's replay cache never collides. |
 | `ath` | `accessToken` | Unpadded base64url SHA-256 of the token. Omitted when no token is passed. |
-| `nonce` | `nonce` | Omitted unless supplied. |
+| `nonce` | `nonce` | Omitted when null **or empty**. |
 
 The public JWK travels in the JWT header, alongside `typ: dpop+jwt` and
 `alg: ES256`.
@@ -184,6 +184,37 @@ Future<Response> send(Request request) async {
 }
 ```
 
+### Keys you cannot read
+
+`DPoPKeyPair` holds the private key in Dart memory. If your key lives where
+script and Dart code must not read it — a WebCrypto `CryptoKey` created with
+`extractable: false`, the Android Keystore, the iOS Keychain — implement
+`DPoPSigner` over it and use `DPoPSignerClient`. Signing there is async, so
+`createProof` returns a `Future`; everything else, including claims and
+`headers()`, is the same.
+
+```dart
+class WebCryptoSigner implements DPoPSigner {
+  @override
+  final Map<String, String> publicJwk; // kty, crv, x, y — public members only
+
+  @override
+  Future<Uint8List> sign(Uint8List message) async {
+    // Must return the raw 64 byte r || s, which is what WebCrypto's ECDSA
+    // already gives. A DER signature is rejected with a StateError.
+    return signWithKeystore(message);
+  }
+}
+
+final client = DPoPSignerClient(WebCryptoSigner(...));
+final proof = await client.createProof(url: url, method: 'GET');
+```
+
+`dpopThumbprint(jwk)` gives the key's `jkt` from the public JWK alone, for the
+moment before any proof exists (`client.thumbprint` is the same value).
+`createProof` accepts `ws` and `wss` URLs too, for a WebSocket handshake, and
+drops their default ports (`wss:443`, `ws:80`).
+
 ### Checking a token is bound to your key
 
 A JWT access token carries the key it is bound to in `cnf.jkt`. After
@@ -220,10 +251,10 @@ you do.
 
 **`iat` is truncated, not rounded.** Rounding pushes the timestamp up to half a
 second into the future, which a server with no clock-skew allowance rejects.
-This also means passing `noIssueAt: true` to the underlying signer, since
-`dart_jsonwebtoken` otherwise overwrites `iat` with its own clock on the way
-out — so hand-rolled code that computes `iat` carefully often finds the value
-never reaches the token.
+A hand-rolled signer built on `dart_jsonwebtoken` also has to pass
+`noIssueAt: true`, since the library otherwise overwrites `iat` with its own
+clock on the way out — so code that computes `iat` carefully often finds the
+value never reaches the token.
 
 **`htu` excludes the query, the fragment and the userinfo, and never has an
 empty path.** See above.
@@ -243,10 +274,11 @@ the server, not a client library. If you are writing a verifier, note that
 - ES256 over P-256 only. RFC 9449 permits other algorithms; servers rarely do.
   A key on another curve is refused, not reinterpreted.
 - Signing only. No verification, no nonce cache, no HTTP client.
-- No key storage. Persist `privateKeyPem` with whatever your platform offers.
+- No key storage. Persist `privateKeyPem` with whatever your platform offers, or
+  keep the key in a keystore and sign through a `DPoPSigner`.
 
 The dependency footprint is deliberately small — `pointycastle` and `asn1lib`
-for the curve and the PEMs, `dart_jsonwebtoken` for the JWS, `crypto` and
+for the curve and the PEMs, `dart_jsonwebtoken` for the ES256 signature, `crypto` and
 `uuid`. Nothing here pulls in an HTTP client or a logger.
 
 ## Upgrading from 1.x

@@ -21,8 +21,13 @@
 ///
 /// request.headers.addAll(proof.headers());
 /// ```
+/// A key the app cannot read — a WebCrypto `CryptoKey`, a platform keystore —
+/// signs through a `DPoPSigner` and `DPoPSignerClient` instead.
 library;
 
 export 'src/dpop_client_base.dart';
 export 'src/dpop_key_pair.dart';
 export 'src/dpop_proof.dart';
+export 'src/dpop_signer.dart';
+export 'src/dpop_signer_client.dart';
+export 'src/jwk_thumbprint.dart';
