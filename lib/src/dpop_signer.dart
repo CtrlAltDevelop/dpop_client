@@ -14,8 +14,10 @@ abstract interface class DPoPSigner {
   /// The public key as a JWK: `kty: EC`, `crv: P-256`, `x` and `y` (base64url,
   /// unpadded).
   ///
-  /// Published as-is in the `jwk` header of every proof, so it must hold
-  /// public members only. A `d` member is refused when a proof is created.
+  /// Published as-is in the `jwk` header of every proof, so keep it to exactly
+  /// those four members: a WebCrypto export also carries `ext` and `key_ops`,
+  /// which would otherwise travel with every request. A `d` member is refused
+  /// when a proof is created.
   Map<String, String> get publicJwk;
 
   /// The ES256 signature of [message], the JWS signing input as UTF-8 bytes.

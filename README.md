@@ -210,6 +210,12 @@ final client = DPoPSignerClient(WebCryptoSigner(...));
 final proof = await client.createProof(url: url, method: 'GET');
 ```
 
+Limit `publicJwk` to exactly `kty`, `crv`, `x` and `y`. It is published as-is in
+every proof's header, and a WebCrypto export also carries `ext` and `key_ops`,
+which would travel with every request. They do no harm to the thumbprint, which
+ignores them, but a proof has no use for them. Copy the four members out of the
+exported JWK rather than passing it through.
+
 `dpopThumbprint(jwk)` gives the key's `jkt` from the public JWK alone, for the
 moment before any proof exists (`client.thumbprint` is the same value).
 `createProof` accepts `ws` and `wss` URLs too, for a WebSocket handshake, and
